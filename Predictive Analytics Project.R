@@ -1,0 +1,83 @@
+#install.packages("MASS")
+library(MASS)
+library(rpart)
+
+help(birthwt) #brings the documentation
+str(birthwt) #see the columns
+head(birthwt) #View the first few rows
+hist(birthwt$bwt, col = 'blue') #Hsitogram
+table(birthwt$low) 
+attach(birthwt)
+bw_subset <- subset(birthwt, select = c(age,lwt))
+boxplot(bw_subset, col = c("blue","red"),ylab = "Centimeters")
+#install.packages("psych")
+library(psych)
+pairs.panels(birthwt[,c('age','lwt','race','smoke','low')])
+
+# Categorical data in statistics are called factors.
+# These descriptive looking values are actually numeric.
+# Example: 1 = High, 2 = Medium, 3 = Low.
+
+#Factors are often stored as strings in  data so we need to
+#convert them to factors to use in a model.
+#We convert birthwt string column to factors...
+
+cols <- c('low','race','smoke','ht','ui')
+birthwt[cols] <- lapply(birthwt[cols], as.factor)
+
+#Next, need to split the dataset so to have a training 
+#Since, low = bwt <= 2.5, we exclude bwt from the model, and 
+
+#seperate training and test dataset
+
+set.seed(1)
+train <- sample(1:nrow(birthwt), 0.75 * nrow(birthwt))
+test = birthwt[-train, ]
+
+#Now, to build the model, By using the rpart function
+library("rpart")
+birthwtTree <- rpart(low ~ . - bwt, data = birthwt[train, ],
+                     method = 'class')
+plot(birthwtTree, uniform = TRUE, main = "Low Birthweight Tree")
+text(birthwtTree, use.n = TRUE, all = TRUE, cex = .8)
+
+#Nicer Diagram
+#install.packages("rattle")
+library(rattle)
+fancyRpartPlot(birthwtTree, main = "Birth Weight")
+
+#stats
+summary(birthwtTree)
+
+#Try the model...
+#  -next to train is used to get the non training rows.
+birthwtPred <-  predict(birthwtTree, test, type = 'class')
+
+#Now let's show this as a confusion Matrix..
+#install.packages("gmodels")
+library(gmodels)
+CrossTable(x = test$low, y = birthwtPred, prop.chisq = FALSE)
+
+####################2nd Model
+
+library(class)
+trainLabels <- birthwt[train, 1]
+testLabels <- birthwt[-train, 1]
+
+names(birthwt)
+newdata <- birthwt[-train, c("age",'lwt','race','smoke','ptl','ht','ui','ftv')]
+
+birthwt_pred2 <- knn(train = birthwt[train, ], test = birthwt[-train, ],cl = trainLabels, k=2)
+birthwt_pred2
+
+#Do the Confusion matrix
+library(gmodels)
+CrossTable(x = testLabels, y = birthwt_pred2, prop.chisq = FALSE)
+
+#Calculate the accurarcy
+accuracy <- mean(testLabels == birthwtPred)
+accuracy
+
+#Conversely - Getting the error rate..
+error <- mean(testLabels != birthwtPred)
+error
